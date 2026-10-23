@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#020814">
+<title>AI Team Command Center</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#020814; --bg2:#04122b; --card:#071a38; --card2:#0a2350; --line:#123a75;
+  --blue:#008cff; --royal:#2f6bff; --ice:#7fd0ff; --txt:#eaf4ff; --dim:#8fb3dd;
+  --green:#22c55e; --red:#ef4444; --amber:#f5b73d; --gray:#64748b;
+  --r:18px; --nav:64px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--txt);min-height:100vh;padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom) + 12px);
+  background:
+   radial-gradient(900px 480px at 85% -10%,rgba(0,140,255,.28),transparent 60%),
+   radial-gradient(700px 420px at -10% 20%,rgba(47,107,255,.18),transparent 60%),
+   linear-gradient(180deg,#030b1e 0%,#020814 40%,#010409 100%);
+  background-attachment:fixed}
+.wrap{max-width:1060px;margin:0 auto;padding:0 16px}
+header.top{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);background:rgba(2,8,20,.78);border-bottom:1px solid rgba(18,58,117,.6)}
+.top-in{max-width:1060px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#0a2a5e,#04122b);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:var(--ice);box-shadow:0 0 18px rgba(0,140,255,.45),inset 0 1px 0 rgba(127,208,255,.35);letter-spacing:.5px}
+.top h1{font-size:17px;letter-spacing:1.2px;font-weight:800}
+.top .sub{font-size:10.5px;color:var(--dim);letter-spacing:2.2px;text-transform:uppercase}
+.bell{margin-left:auto;position:relative;background:var(--card);border:1px solid var(--line);color:var(--ice);width:42px;height:42px;border-radius:12px;font-size:18px;cursor:pointer}
+.bell .bdg{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+section.page{display:none;padding-top:18px;animation:fade .25s ease}
+section.page.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.hero{border-radius:24px;padding:22px;background:linear-gradient(150deg,#0b3a7d 0%,#06275c 45%,#03122e 100%);border:1px solid #1c56ad;box-shadow:0 18px 44px rgba(0,60,160,.45),inset 0 1px 0 rgba(127,208,255,.4);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(420px 190px at 85% 0%,rgba(127,208,255,.35),transparent 65%);pointer-events:none}
+.hero .k{font-size:11px;letter-spacing:2.4px;color:var(--ice);text-transform:uppercase}
+.hero .big{font-size:30px;font-weight:900;margin:6px 0 2px;letter-spacing:.4px}
+.hero .line{color:#cfe7ff;font-size:13.5px}
+.hero .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:relative;z-index:1}
+.chip{background:rgba(2,12,32,.55);border:1px solid rgba(127,208,255,.35);color:#dff2ff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700}
+.chip b{color:var(--ice)}
+.cmd{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:0 10px 30px rgba(0,20,60,.35)}
+.cmd label{font-size:11px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;font-weight:700}
+.cmdrow{display:flex;gap:10px;margin-top:10px}
+.cmdrow input{flex:1;background:#020c22;border:1px solid var(--line);border-radius:12px;color:var(--txt);padding:13px 14px;font-size:15px;outline:none}
+.cmdrow input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,140,255,.25)}
+.btn{background:linear-gradient(180deg,#1d8fff,#0067d6);border:none;color:#fff;font-weight:800;border-radius:12px;padding:13px 18px;font-size:14.5px;cursor:pointer;box-shadow:0 8px 20px rgba(0,110,255,.4)}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:var(--card2);border:1px solid var(--line);box-shadow:none;color:var(--ice)}
+.btn.small{padding:8px 12px;font-size:12.5px;border-radius:10px}
+.quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.quick button{background:#04122b;border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:7px 12px;font-size:12px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+.stat{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:inset 0 1px 0 rgba(127,208,255,.18)}
+.stat .n{font-size:26px;font-weight:900}
+.stat .t{font-size:11px;letter-spacing:1.6px;color:var(--dim);text-transform:uppercase;margin-top:2px}
+h2.sec{font-size:13px;letter-spacing:2.2px;text-transform:uppercase;color:var(--ice);margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.member{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start}
+.avatar{width:48px;height:48px;border-radius:14px;flex:0 0 48px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#eaf7ff;background:linear-gradient(145deg,#0d3674,#051a3d);border:1px solid #1c56ad;box-shadow:0 0 14px rgba(0,140,255,.35)}
+.member h3{font-size:15.5px}
+.member .role{color:var(--ice);font-size:12.5px;font-weight:700}
+.member p{color:var(--dim);font-size:12.8px;margin-top:4px;line-height:1.45}
+.pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:1px;padding:4px 9px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+.pill.ok{background:rgba(34,197,94,.16);color:#4ade80;border:1px solid rgba(34,197,94,.4)}
+.pill.op{background:rgba(0,140,255,.16);color:var(--ice);border:1px solid rgba(0,140,255,.45)}
+.pill.man{background:rgba(245,183,61,.14);color:#fbbf24;border:1px solid rgba(245,183,61,.4)}
+.pill.off{background:rgba(100,116,139,.18);color:#94a3b8;border:1px solid rgba(100,116,139,.4)}
+.member .meta{margin-left:auto;text-align:right}
+.member .cnt{font-size:11.5px;color:var(--dim);margin-top:6px}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;align-items:start}
+.col{background:rgba(4,18,43,.6);border:1px solid rgba(18,58,117,.7);border-radius:var(--r);padding:12px;min-height:90px}
+.col h3{font-size:11.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between;margin-bottom:10px}
+.col h3 .n{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:1px 8px;color:var(--ice)}
+.tcard{background:linear-gradient(165deg,#0b2653,#061a3a);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;cursor:pointer;box-shadow:inset 0 1px 0 rgba(127,208,255,.15)}
+.tcard:active{transform:scale(.985)}
+.tcard .tid{font-size:10.5px;color:var(--ice);font-weight:800;letter-spacing:1px}
+.tcard .tt{font-weight:700;font-size:14px;margin:3px 0 6px;line-height:1.35}
+.tcard .tm{font-size:11.5px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pri{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:.6px}
+.pri.high{background:rgba(239,68,68,.18);color:#f87171}
+.pri.med{background:rgba(245,183,61,.16);color:#fbbf24}
+.pri.low{background:rgba(100,116,139,.25);color:#cbd5e1}
+.empty{color:var(--gray);font-size:12px;text-align:center;padding:12px 4px;border:1px dashed rgba(18,58,117,.8);border-radius:12px}
+.proj{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:12px}
+.proj h3{font-size:16.5px}
+.proj p{color:var(--dim);font-size:13px;margin-top:4px;line-height:1.5}
+.proj .links{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.proj a{color:var(--ice);font-size:12.5px;font-weight:700;text-decoration:none;background:#04122b;border:1px solid var(--line);padding:7px 11px;border-radius:9px}
+.act{display:flex;gap:12px;padding:11px 2px;border-bottom:1px solid rgba(18,58,117,.45)}
+.act .dot{width:9px;height:9px;border-radius:50%;background:var(--blue);margin-top:6px;flex:0 0 9px;box-shadow:0 0 8px rgba(0,140,255,.8)}
+.act .dot.g{background:var(--green);box-shadow:0 0 8px rgba(34,197,94,.8)}
+.act .dot.r{background:var(--red);box-shadow:0 0 8px rgba(239,68,68,.8)}
+.act .dot.a{background:var(--amber);box-shadow:0 0 8px rgba(245,183,61,.8)}
+.act .tx{font-size:13.5px;line-height:1.45}
+.act .tx b{color:#fff}
+.act .when{font-size:11px;color:var(--gray)}
+.notif{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:12px;padding:13px 14px;margin-bottom:10px;font-size:13.5px}
+.notif.warn{border-left-color:var(--amber)}
+.notif.bad{border-left-color:var(--red)}
+.notif.good{border-left-color:var(--green)}
+.notif .when{font-size:11px;color:var(--gray);margin-top:3px}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(2,10,26,.92);backdrop-filter:blur(16px);border-top:1px solid rgba(18,58,117,.7);padding-bottom:env(safe-area-inset-bottom)}
+nav.bottom .in{max-width:1060px;margin:0 auto;display:flex}
+nav.bottom button{flex:1;background:none;border:none;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:9px 2px calc(9px) ;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.bottom button .ic{font-size:19px}
+nav.bottom button.on{color:var(--ice)}
+nav.bottom button.on .ic{filter:drop-shadow(0 0 6px rgba(0,140,255,.9))}
+.sheet{position:fixed;inset:0;z-index:80;display:none}
+.sheet.on{display:block}
+.sheet .bk{position:absolute;inset:0;background:rgba(0,2,8,.7);backdrop-filter:blur(3px)}
+.sheet .panel{position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:linear-gradient(180deg,#0a2350,#04122b);border-top:1px solid #1c56ad;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto}
+.sheet h3{font-size:17px;margin-bottom:2px}
+.sheet .sub2{color:var(--dim);font-size:12px}
+.fld{margin-top:14px}
+.fld label{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);font-weight:700;display:block;margin-bottom:6px}
+.fld select,.fld textarea,.fld input{width:100%;background:#020c22;border:1px solid var(--line);border-radius:11px;color:var(--txt);padding:11px 12px;font-size:14px;font-family:inherit}
+.fld textarea{min-height:64px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hist{margin-top:8px}
+.hist .h{display:flex;gap:9px;font-size:12.5px;color:var(--dim);padding:6px 0;border-bottom:1px solid rgba(18,58,117,.4)}
+.hist .h b{color:var(--txt)}
+.foot{font-size:11.5px;color:var(--gray);text-align:center;margin:26px 0 6px;line-height:1.6}
+.foot a{color:var(--ice)}
+@media(min-width:760px){.hero .big{font-size:36px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="logo">AI</div>
+  <div><h1>AI TEAM</h1><div class="sub">Command Center</div></div>
+  <button class="bell" id="bellBtn" aria-label="Notifications">🔔<span class="bdg" id="bellBdg" style="display:none">0</span></button>
+</div></header>
+
+<div class="wrap">
+<!-- COMMAND -->
+<section class="page on" id="pg-command">
+  <div class="hero">
+    <div class="k">Operations Status</div>
+    <div class="big" id="heroLine">Team standing by</div>
+    <div class="line" id="heroSub">GitHub ledger connected. Seven specialist roles — executed by Muse and connected tools; design runs through Stitch by handoff. Nothing here is simulated.</div>
+    <div class="chips" id="heroChips"></div>
+  </div>
+  <div class="cmd">
+    <label for="cmdInput">Give the team an order</label>
+    <div class="cmdrow">
+      <input id="cmdInput" type="text" placeholder="Build me a new app… Fix Money Vault… Create a logo…" autocomplete="off">
+      <button class="btn" id="cmdSend">Send</button>
+    </div>
+    <div class="quick" id="quickRow"></div>
+  </div>
+  <div class="grid" id="statGrid"></div>
+  <h2 class="sec">Needs your attention</h2>
+  <div id="attnList"></div>
+  <h2 class="sec">Recent activity</h2>
+  <div id="recentAct"></div>
+</section>
+
+<!-- TEAM -->
+<section class="page" id="pg-team">
+  <h2 class="sec">AI Team Directory</h2>
+  <div id="teamList"></div>
+  <p class="foot">Statuses are real. <b style="color:#fbbf24">Manual handoff</b> means no API exists yet — Muse carries the task to that tool through the browser or a file handoff, and says so. Nothing is marked connected unless it was verified.</p>
+</section>
+
+<!-- BOARD -->
+<section class="page" id="pg-board">
+  <h2 class="sec">Task Board</h2>
+  <div class="board" id="boardEl"></div>
+  <p class="foot">Tap a task to open it: change stage, reassign, add notes, attach deliverable links and completion evidence. The durable ledger lives in GitHub — Muse syncs task records there as operator.</p>
+</section>
+
+<!-- PROJECTS -->
+<section class="page" id="pg-projects">
+  <h2 class="sec">Projects</h2>
+  <div id="projList"></div>
+</section>
+
+<!-- ACTIVITY -->
+<section class="page" id="pg-activity">
+  <h2 class="sec">Activity Feed</h2>
+  <div id="actList"></div>
+  <h2 class="sec">Data</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn ghost small" id="expBtn">Export backup (JSON)</button>
+    <button class="btn ghost small" id="impBtn">Import backup</button>
+    <input type="file" id="impFile" accept="application/json" style="display:none">
+  </div>
+  <p class="foot">AI Team Command Center · Owner: Marquis Wright · Operator: Muse (Foam)<br>Free tier only — GitHub + Netlify. No paid APIs. No secrets stored in this app.</p>
+</section>
+
+<!-- NOTIFICATIONS -->
+<section class="page" id="pg-notifs">
+  <h2 class="sec">Notifications</h2>
+  <div id="notifList"></div>
+</section>
+</div>
+
+<nav class="bottom"><div class="in">
+  <button data-pg="command" class="on"><span class="ic">🎛️</span>Command</button>
+  <button data-pg="team"><span class="ic">🤖</span>Team</button>
+  <button data-pg="board"><span class="ic">📋</span>Board</button>
+  <button data-pg="projects"><span class="ic">🗂️</span>Projects</button>
+  <button data-pg="activity"><span class="ic">📡</span>Activity</button>
+</div></nav>
+
+<!-- TASK SHEET -->
+<div class="sheet" id="sheet"><div class="bk" id="sheetBk"></div><div class="panel" id="sheetPanel"></div></div>
+
+<script>
+"use strict";
+const LS="aitc_v1";
+const STAGES=["Inbox","Specified","Assigned","In Progress","Review","Completed","Blocked"];
+const TEAM=[
+ {id:"pm",init:"PM",name:"Project Manager",role:"Planning · Breakdown · Tracking",status:"operator",statusLabel:"ChatGPT + Muse",desc:"ChatGPT specifies and breaks down projects; Muse turns specs into tracked tasks, routes them, verifies results, and reports back. Intake from ChatGPT is a handoff — no direct API exists yet."},
+ {id:"dev",init:"DV",name:"Software Developer",role:"App & Website Development",status:"operator",statusLabel:"Operational — Muse",desc:"Builds features and whole apps, writes and edits code, pushes to GitHub. Executed directly by Muse — demonstrated on Money Vault, Potential Plays, and this Command Center."},
+ {id:"design",init:"UX",name:"UI/UX Designer",role:"Interface Design · Branding",status:"manual",statusLabel:"Handoff — Stitch / Designer",desc:"Google Stitch (interfaces) and Microsoft Designer (logos, graphics). Neither has an API, so Muse carries a written brief in through the browser and implements what comes back."},
+ {id:"backend",init:"BE",name:"Backend Engineer",role:"Database · APIs · Auth",status:"operator",statusLabel:"Operational — Muse",desc:"Supabase schemas, row-level security, Edge Functions, and data migrations — built and verified live on Money Vault. Executed directly by Muse."},
+ {id:"qa",init:"QA",name:"QA Tester",role:"Testing & Verification",status:"operator",statusLabel:"Operational — Muse",desc:"Syntax and test checks, live-link audits, deployment verification. Nothing is marked complete without evidence — TASK-0001 and TASK-0003 both closed on QA records."},
+ {id:"devops",init:"DO",name:"DevOps Engineer",role:"Deployment & Infrastructure",status:"operator",statusLabel:"Operational — Muse",desc:"GitHub → Netlify pipeline. All three sites auto-deploy on push to main; every deploy is verified live before it is reported. Executed by Muse."},
+ {id:"research",init:"RS",name:"Research Specialist",role:"Research & Analysis",status:"operator",statusLabel:"Operational — Muse",desc:"Web research, status and price checks, comparisons — returned as verified results with sources, not instructions. Executed directly by Muse."},
+ {id:"github",init:"GH",name:"GitHub",role:"Task & Code Ledger",status:"ok",statusLabel:"Connected · verified",desc:"The durable record under MoneyVault5: code, task issues, stage logs, and completion evidence. Reads and writes verified Oct 23, 2026."}
+];
+const PROJECTS=[
+ {name:"Money Vault",desc:"Two-person shared-finance app. Live and in production — changes only with owner approval.",links:[["Live app","https://sunny-haupia-c8fc29.netlify.app"],["Repo","https://github.com/MoneyVault5/Money-vault-app"]]},
+ {name:"Potential Plays",desc:"Private sports-betting HQ for Quis Money × God Father Vic. Phase 1 live; data on-device until Phase 2 sync.",links:[["Live app","https://comforting-baklava-09638c.netlify.app"],["Repo","https://github.com/MoneyVault5/potential-plays"]]},
+ {name:"AI Team Command Center",desc:"This app. The permanent board for the AI team: orders in, tasks routed, evidence recorded.",links:[["Live app","https://fastidious-melomakarona-8e4299.netlify.app"],["Repo","https://github.com/MoneyVault5/ai-team-command-center"]]},
+ {name:"Future Applications",desc:"New ideas land in the Inbox, get specified by ChatGPT, built by Muse, designed by Stitch/Designer, verified by QA.",links:[]}
+];
+let S;
+function now(){return new Date().toISOString()}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function seed(){
+ return {seq:3,tasks:[
+  {id:"TASK-0001",title:"Delegation smoke test — premium blue AI Team Dashboard mockup",desc:"Prove the intake → delegation → artifact → QA → completion loop without touching production apps. Deliverable: standalone static HTML mockup, blue-accented, with task status cards.",assignee:"muse",project:"AI Team Command Center",priority:"high",stage:"Completed",criteria:["Cards for Inbox, In Progress, Review, Done","Sample task TASK-0001 shown","No backend, secrets, paid API, or production deployment","Reviewer verifies artifact before Completed"],created:now(),updated:now(),deliverables:[{label:"Dashboard mockup (GitHub)","url":"https://github.com/MoneyVault5/ai-team-command-center/blob/main/deliverables/task-0001-dashboard-mockup.html"}],evidence:"QA verified Oct 23, 2026: all four status columns present, TASK-0001 sample card present, zero script blocks / no backend calls in the artifact. Completion recorded on GitHub issue #2 (potential-plays).",history:[{t:now(),who:"ChatGPT",text:"Task specified on the ai-team-control branch (AI_TEAM/tasks/0001-delegation-smoke-test.md). GitHub issue #2 in potential-plays."},{t:now(),who:"Muse",text:"Picked up by operator. Execution in progress."},{t:now(),who:"Muse",text:"Deliverable produced: standalone blue dashboard mockup in the ai-team-command-center repo."},{t:now(),who:"QA (Muse)",text:"Verified against all four acceptance criteria — passed. Marked Completed with evidence."}]},
+  {id:"TASK-0002",title:"Build and deploy the AI Team Command Center",desc:"Owner directive Oct 23: build the permanent AI team platform — command input, team directory, 7-stage board, projects, activity, notifications. $0 budget, free hosting, PWA for iPhone.",assignee:"muse",project:"AI Team Command Center",priority:"high",stage:"Completed",criteria:["Repo ai-team-command-center created (private)","App deployed at a verified HTTPS URL","TASK-0001 run end-to-end with results recorded on GitHub","Honest integration statuses — no simulated activity"],created:now(),updated:now(),deliverables:[{label:"Live Command Center","url":"https://fastidious-melomakarona-8e4299.netlify.app"}],evidence:"Deployed to Netlify (Public) from main @ 17e6086 on Oct 23, 2026; independently verified live — HTTP 200, correct title, board content and PWA manifest serving.",history:[{t:now(),who:"Owner",text:"Master directive issued: build and activate the permanent AI team."},{t:now(),who:"Muse",text:"Existing ai-team-control branch read and reused. Build started."},{t:now(),who:"Muse",text:"Repo created, app built and pushed, TASK-0001 smoke test completed and recorded on GitHub."},{t:now(),who:"Muse",text:"Deployed and verified live at fastidious-melomakarona-8e4299.netlify.app."}]}
+ ],activity:[
+  {t:now(),kind:"g",text:"<b>GitHub</b> verified — ai-team-control branch and AI_TEAM workspace read; routing rules adopted."},
+  {t:now(),kind:"",text:"<b>Command Center</b> initialized by Muse (operator). ChatGPT, Stitch and Designer are manual handoffs until real APIs exist."}
+ ],notifs:[
+  {t:now(),kind:"",text:"Welcome to your Command Center. TASK-0001 (delegation smoke test) is specified and picked up by Muse.",read:false}
+ ]};
+}
+function load(){try{const r=localStorage.getItem(LS);if(r){S=JSON.parse(r)}else{S=seed()}}catch(e){S=seed()} const ALIAS={chatgpt:"pm",muse:"dev",stitch:"design",designer:"design"};S.tasks.forEach(t=>{if(ALIAS[t.assignee])t.assignee=ALIAS[t.assignee]});save()}
+function save(){localStorage.setItem(LS,JSON.stringify(S))}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function fmtT(iso){const d=new Date(iso);return d.toLocaleDateString([],{month:"short",day:"numeric"})+" "+d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}
+function teamBy(id){return TEAM.find(t=>t.id===id)||TEAM[1]}
+function logAct(kind,text){S.activity.unshift({t:now(),kind,text});if(S.activity.length>120)S.activity.length=120}
+function notify(kind,text){S.notifs.unshift({t:now(),kind,text,read:false});if(S.notifs.length>60)S.notifs.length=60}
+function route(text){
+ const s=text.toLowerCase();
+ if(/logo|brand|graphic|poster|banner|image|\bart\b/.test(s))return{assignee:"design",note:"Routed: visuals → UI/UX Designer (Microsoft Designer / Stitch by handoff; Muse carries the brief and implements the result)."};
+ if(/\bui\b|\bux\b|design|layout|screen|mockup|look and feel/.test(s))return{assignee:"design",note:"Routed: interface design → UI/UX Designer (Google Stitch by handoff), Software Developer implements from the specs."};
+ if(/database|supabase|backend|api|server|auth|sql|table|schema/.test(s))return{assignee:"backend",note:"Routed: backend work → Backend Engineer (Muse), QA verifies before it ships."};
+ if(/deploy|netlify|hosting|domain|release|publish|go live/.test(s))return{assignee:"devops",note:"Routed: deployment → DevOps Engineer (Muse) via GitHub → Netlify, verified live."};
+ if(/bug|broken|error|crash|not working|fix/.test(s))return{assignee:"qa",note:"Routed: bug → QA Tester diagnoses, Software Developer applies the fix, QA re-verifies."};
+ if(/research|check|find|compare|audit|verify|look up|price|status/.test(s))return{assignee:"research",note:"Routed: research → Research Specialist (Muse) runs it and reports verified results."};
+ if(/plan|organize|roadmap|break down|strategy|\bspecs?\b/.test(s))return{assignee:"pm",note:"Routed: planning → Project Manager (ChatGPT specifies, Muse tracks and routes execution)."};
+ if(/app|website|build|feature|page|code|\badd\b|update|improve|change|create/.test(s))return{assignee:"dev",note:"Routed: build work → Software Developer (Muse) implements, QA verifies before deployment."};
+ return{assignee:"pm",note:"General request → Project Manager: ChatGPT specifies it, then Muse routes execution."};
+}
+function createTask(text){
+ const r=route(text);const id="TASK-"+String(S.seq).padStart(4,"0");S.seq++;
+ const t={id,title:text,desc:"Owner order via Command Center.",assignee:r.assignee,project:"AI Team Command Center",priority:"med",stage:"Inbox",criteria:["Deliverable produced","QA check passed","Evidence recorded before Completed"],created:now(),updated:now(),deliverables:[],evidence:"",history:[{t:now(),who:"Owner",text:"Order submitted from Command Center."},{t:now(),who:"System",text:r.note}]};
+ S.tasks.unshift(t);logAct("",`<b>${id}</b> created and routed to <b>${esc(teamBy(r.assignee).name)}</b>: “${esc(text)}”`);
+ notify("","New task "+id+" created and routed to "+teamBy(r.assignee).name+".");
+ save();render();openTask(id);
+}
+let curPage="command";
+function go(pg){
+ curPage=pg;
+ document.querySelectorAll("section.page").forEach(s=>s.classList.toggle("on",s.id==="pg-"+pg));
+ document.querySelectorAll("nav.bottom button").forEach(b=>b.classList.toggle("on",b.dataset.pg===pg));
+ if(pg==="notifs"){S.notifs.forEach(n=>n.read=true);save()}
+ window.scrollTo({top:0});
+ render();
+}
+function render(){
+ const open=S.tasks.filter(t=>t.stage!=="Completed");
+ const inProg=S.tasks.filter(t=>t.stage==="In Progress").length;
+ const blocked=S.tasks.filter(t=>t.stage==="Blocked").length;
+ const done=S.tasks.filter(t=>t.stage==="Completed").length;
+ document.getElementById("heroLine").textContent = blocked? blocked+" task"+(blocked>1?"s":"")+" blocked — needs you" : inProg? "Team is working — "+inProg+" in progress" : "Team standing by";
+ document.getElementById("heroChips").innerHTML=
+  `<span class="chip">Open tasks <b>${open.length}</b></span><span class="chip">Completed <b>${done}</b></span><span class="chip">GitHub <b>Connected</b></span><span class="chip">Budget <b>$0 — free tier</b></span>`;
+ document.getElementById("statGrid").innerHTML=
+  [["Inbox",S.tasks.filter(t=>t.stage==="Inbox").length],["In Progress",inProg],["In Review",S.tasks.filter(t=>t.stage==="Review").length],["Completed",done]].map(x=>`<div class="stat"><div class="n">${x[1]}</div><div class="t">${x[0]}</div></div>`).join("");
+ const attn=S.tasks.filter(t=>t.stage==="Blocked"||t.stage==="Review");
+ document.getElementById("attnList").innerHTML= attn.length? attn.map(taskCard).join("") : `<div class="empty">Nothing waiting on you right now.</div>`;
+ document.getElementById("recentAct").innerHTML=S.activity.slice(0,6).map(actRow).join("")||`<div class="empty">No activity yet.</div>`;
+ // team
+ document.getElementById("teamList").innerHTML=TEAM.map(m=>{
+  const cnt=S.tasks.filter(t=>t.assignee===m.id&&t.stage!=="Completed").length;
+  const cur=S.tasks.find(t=>t.assignee===m.id&&t.stage==="In Progress")||S.tasks.find(t=>t.assignee===m.id&&t.stage!=="Completed");
+  const pillCls=m.status==="ok"?"ok":m.status==="operator"?"op":m.status==="manual"?"man":"off";
+  return `<div class="member"><div class="avatar">${m.init}</div><div style="flex:1;min-width:0"><h3>${esc(m.name)}</h3><div class="role">${esc(m.role)}</div><p>${esc(m.desc)}</p></div><div class="meta"><span class="pill ${pillCls}">${esc(m.statusLabel)}</span><div class="cnt">${cnt} open task${cnt===1?"":"s"}</div>${cur?`<div class="cnt" style="color:var(--ice)">Now: ${esc(cur.id)} — ${esc(cur.title.slice(0,44))}${cur.title.length>44?"…":""}</div>`:""}</div></div>`}).join("");
+ // board
+ document.getElementById("boardEl").innerHTML=STAGES.map(st=>{
+  const ts=S.tasks.filter(t=>t.stage===st);
+  return `<div class="col"><h3>${st}<span class="n">${ts.length}</span></h3>${ts.length?ts.map(taskCard).join(""):`<div class="empty">No tasks</div>`}</div>`}).join("");
+ // projects
+ document.getElementById("projList").innerHTML=PROJECTS.map(p=>{
+  const cnt=S.tasks.filter(t=>t.project===p.name&&t.stage!=="Completed").length;
+  return `<div class="proj"><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p><p style="margin-top:6px">${cnt} open task${cnt===1?"":"s"}</p>${p.links.length?`<div class="links">${p.links.map(l=>`<a href="${l[1]}" target="_blank" rel="noopener">${esc(l[0])} ↗</a>`).join("")}</div>`:""}</div>`}).join("");
+ // activity
+ document.getElementById("actList").innerHTML=S.activity.map(actRow).join("")||`<div class="empty">No activity yet.</div>`;
+ // notifs
+ const un=S.notifs.filter(n=>!n.read).length;
+ const bdg=document.getElementById("bellBdg");bdg.style.display=un?"flex":"none";bdg.textContent=un;
+ document.getElementById("notifList").innerHTML=S.notifs.length?S.notifs.map(n=>`<div class="notif ${n.kind}">${esc(n.text)}<div class="when">${fmtT(n.t)}</div></div>`).join(""):`<div class="empty">No notifications.</div>`;
+ document.querySelectorAll("[data-task]").forEach(el=>el.addEventListener("click",()=>openTask(el.dataset.task)));
+}
+function taskCard(t){
+ return `<div class="tcard" data-task="${t.id}"><div class="tid">${t.id} · ${esc(t.project)}</div><div class="tt">${esc(t.title)}</div><div class="tm"><span class="pri ${t.priority}">${t.priority.toUpperCase()}</span><span>${esc(teamBy(t.assignee).name)}</span><span>· ${fmtT(t.updated)}</span></div></div>`;
+}
+function actRow(a){return `<div class="act"><div class="dot ${a.kind||""}"></div><div><div class="tx">${a.text}</div><div class="when">${fmtT(a.t)}</div></div></div>`}
+let curTask=null;
+function openTask(id){
+ const t=S.tasks.find(x=>x.id===id);if(!t)return;curTask=id;
+ const p=document.getElementById("sheetPanel");
+ p.innerHTML=`
+  <div class="tid" style="font-size:11px;color:var(--ice);font-weight:800;letter-spacing:1px">${t.id} · ${esc(t.project)}</div>
+  <h3>${esc(t.title)}</h3>
+  <div class="sub2">Created ${fmtT(t.created)} · Updated ${fmtT(t.updated)}</div>
+  <p style="margin-top:10px;font-size:14px;line-height:1.55;color:#d7e9ff">${esc(t.desc)}</p>
+  <div class="row2">
+    <div class="fld"><label>Stage</label><select id="fStage">${STAGES.map(s=>`<option ${s===t.stage?"selected":""}>${s}</option>`).join("")}</select></div>
+    <div class="fld"><label>Assigned to</label><select id="fAssign">${TEAM.map(m=>`<option value="${m.id}" ${m.id===t.assignee?"selected":""}>${esc(m.name)}</option>`).join("")}</select></div>
+  </div>
+  <div class="row2">
+    <div class="fld"><label>Priority</label><select id="fPri">${["high","med","low"].map(x=>`<option value="${x}" ${x===t.priority?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="fld"><label>Project</label><select id="fProj">${PROJECTS.map(x=>`<option ${x.name===t.project?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div>
+  </div>
+  <div class="fld"><label>Acceptance criteria</label><div>${t.criteria.map(c=>`<div style="font-size:13.5px;padding:3px 0">• ${esc(c)}</div>`).join("")}</div></div>
+  <div class="fld"><label>Deliverable link (URL)</label><input id="fDeliv" type="url" placeholder="https://…" value="${t.deliverables[0]?esc(t.deliverables[0].url):""}"></div>
+  <div class="fld"><label>Completion evidence</label><textarea id="fEvid" placeholder="What proves this is done — test result, live URL, screenshot note…">${esc(t.evidence)}</textarea></div>
+  <div class="fld"><label>Add a note</label><textarea id="fNote" placeholder="Progress update, blocker, decision…"></textarea></div>
+  <div style="display:flex;gap:10px;margin-top:16px"><button class="btn" id="fSave" style="flex:1">Save changes</button><button class="btn ghost" id="fClose">Close</button></div>
+  <div class="fld"><label>History</label><div class="hist">${t.history.slice().reverse().map(h=>`<div class="h"><span>${fmtT(h.t)}</span><span><b>${esc(h.who)}</b> — ${esc(h.text)}</span></div>`).join("")}</div></div>`;
+ document.getElementById("sheet").classList.add("on");
+ document.getElementById("fClose").onclick=closeSheet;
+ document.getElementById("fSave").onclick=()=>saveTask(t.id);
+}
+function closeSheet(){document.getElementById("sheet").classList.remove("on");curTask=null}
+function saveTask(id){
+ const t=S.tasks.find(x=>x.id===id);if(!t)return;
+ const ns=document.getElementById("fStage").value, na=document.getElementById("fAssign").value;
+ const note=document.getElementById("fNote").value.trim();
+ const deliv=document.getElementById("fDeliv").value.trim();
+ const changes=[];
+ if(ns!==t.stage)changes.push(`stage ${t.stage} → ${ns}`);
+ if(na!==t.assignee)changes.push(`reassigned to ${teamBy(na).name}`);
+ t.stage=ns;t.assignee=na;t.priority=document.getElementById("fPri").value;t.project=document.getElementById("fProj").value;
+ t.evidence=document.getElementById("fEvid").value;
+ if(deliv)t.deliverables=[{label:"Deliverable",url:deliv}];
+ t.updated=now();
+ if(changes.length)t.history.push({t:now(),who:"Owner",text:changes.join("; ")+"."});
+ if(note)t.history.push({t:now(),who:"Owner",text:note});
+ if(ns==="Completed"){logAct("g",`<b>${t.id}</b> completed: “${esc(t.title)}”`);notify("good","Task "+t.id+" completed: "+t.title)}
+ if(ns==="Blocked"){logAct("r",`<b>${t.id}</b> blocked: “${esc(t.title)}”`);notify("bad","Task "+t.id+" is blocked and needs your attention.")}
+ if(changes.length&&ns!=="Completed"&&ns!=="Blocked")logAct("",`<b>${t.id}</b> updated — ${esc(changes.join("; "))}.`);
+ save();closeSheet();render();
+}
+document.getElementById("sheetBk").addEventListener("click",closeSheet);
+document.getElementById("bellBtn").addEventListener("click",()=>go("notifs"));
+document.querySelectorAll("nav.bottom button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.pg)));
+const QUICK=["Build me a new app","Fix Money Vault","Create a logo","Improve Potential Plays","Research a new feature"];
+document.getElementById("quickRow").innerHTML=QUICK.map(q=>`<button>${q}</button>`).join("");
+document.querySelectorAll("#quickRow button").forEach(b=>b.addEventListener("click",()=>{document.getElementById("cmdInput").value=b.textContent;}));
+function submitCmd(){const v=document.getElementById("cmdInput").value.trim();if(!v)return;document.getElementById("cmdInput").value="";createTask(v)}
+document.getElementById("cmdSend").addEventListener("click",submitCmd);
+document.getElementById("cmdInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitCmd()});
+document.getElementById("expBtn").addEventListener("click",()=>{
+ const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ai-team-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+});
+document.getElementById("impBtn").addEventListener("click",()=>document.getElementById("impFile").click());
+document.getElementById("impFile").addEventListener("change",e=>{
+ const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const d=JSON.parse(r.result);if(d&&Array.isArray(d.tasks)){S=d;save();render();alert("Backup imported.")}else alert("That file is not a Command Center backup.")}catch(err){alert("Could not read that file.")}};
+ r.readAsText(f);
+});
+load();render();
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+</script>
+</body>
+</html>
