@@ -213,6 +213,20 @@ nav.bottom button.on .ic{filter:drop-shadow(0 0 6px rgba(0,140,255,.9))}
 <script>
 "use strict";
 const LS="aitc_v1";
+// Backend sync relay (Supabase Edge Function). Disabled until the relay is
+// deployed and the owner enables it — while disabled the app is fully
+// local, exactly as before. Enabling = set enabled:true + url + anonKey.
+const SYNC={enabled:false,url:"",anonKey:"",jwt:""};
+async function syncCall(path,method,body){
+ if(!SYNC.enabled||!SYNC.url)return null;
+ try{
+  const r=await fetch(SYNC.url+path,{method,headers:{"Content-Type":"application/json","Authorization":"Bearer "+(SYNC.jwt||SYNC.anonKey),"apikey":SYNC.anonKey},body:body?JSON.stringify(body):undefined});
+  if(!r.ok)return null;
+  return await r.json();
+ }catch(e){return null}
+}
+function syncCreate(t){syncCall("/tasks","POST",{title:t.title,details:t.desc,assignee:t.assignee,project:t.project,priority:t.priority,source:"dashboard"})}
+function syncUpdate(t){syncCall("/tasks/"+t.id,"PATCH",{stage:t.stage,assignee:t.assignee,evidence:t.evidence,deliverable_url:t.deliverables[0]?t.deliverables[0].url:""})}
 const STAGES=["Inbox","Specified","Assigned","In Progress","Review","Completed","Blocked"];
 const TEAM=[
  {id:"pm",init:"PM",name:"Project Manager",role:"Planning · Breakdown · Tracking",status:"operator",statusLabel:"ChatGPT + Muse",desc:"ChatGPT specifies and breaks down projects; Muse turns specs into tracked tasks, routes them, verifies results, and reports back. Intake from ChatGPT is a handoff — no direct API exists yet."},
@@ -266,7 +280,7 @@ function route(text){
 function createTask(text){
  const r=route(text);const id="TASK-"+String(S.seq).padStart(4,"0");S.seq++;
  const t={id,title:text,desc:"Owner order via Command Center.",assignee:r.assignee,project:"AI Team Command Center",priority:"med",stage:"Inbox",criteria:["Deliverable produced","QA check passed","Evidence recorded before Completed"],created:now(),updated:now(),deliverables:[],evidence:"",history:[{t:now(),who:"Owner",text:"Order submitted from Command Center."},{t:now(),who:"System",text:r.note}]};
- S.tasks.unshift(t);logAct("",`<b>${id}</b> created and routed to <b>${esc(teamBy(r.assignee).name)}</b>: “${esc(text)}”`);
+ S.tasks.unshift(t);syncCreate(t);logAct("",`<b>${id}</b> created and routed to <b>${esc(teamBy(r.assignee).name)}</b>: “${esc(text)}”`);
  notify("","New task "+id+" created and routed to "+teamBy(r.assignee).name+".");
  save();render();openTask(id);
 }
@@ -363,7 +377,7 @@ function saveTask(id){
  if(ns==="Completed"){logAct("g",`<b>${t.id}</b> completed: “${esc(t.title)}”`);notify("good","Task "+t.id+" completed: "+t.title)}
  if(ns==="Blocked"){logAct("r",`<b>${t.id}</b> blocked: “${esc(t.title)}”`);notify("bad","Task "+t.id+" is blocked and needs your attention.")}
  if(changes.length&&ns!=="Completed"&&ns!=="Blocked")logAct("",`<b>${t.id}</b> updated — ${esc(changes.join("; "))}.`);
- save();closeSheet();render();
+ syncUpdate(t);save();closeSheet();render();
 }
 document.getElementById("sheetBk").addEventListener("click",closeSheet);
 document.getElementById("bellBtn").addEventListener("click",()=>go("notifs"));
