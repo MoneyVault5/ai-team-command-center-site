@@ -210,23 +210,108 @@ nav.bottom button.on .ic{filter:drop-shadow(0 0 6px rgba(0,140,255,.9))}
 <!-- TASK SHEET -->
 <div class="sheet" id="sheet"><div class="bk" id="sheetBk"></div><div class="panel" id="sheetPanel"></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 "use strict";
 const LS="aitc_v1";
-// Backend sync relay (Supabase Edge Function). Disabled until the relay is
-// deployed and the owner enables it — while disabled the app is fully
-// local, exactly as before. Enabling = set enabled:true + url + anonKey.
-const SYNC={enabled:false,url:"",anonKey:"",jwt:""};
-async function syncCall(path,method,body){
- if(!SYNC.enabled||!SYNC.url)return null;
+// Backend sync (Supabase project "AI Team" + relay Edge Function).
+// Signed OUT: the app is fully local, exactly as before.
+// Signed IN (owner magic-link): tasks are stored in Supabase via the relay;
+// all table writes and the GitHub token stay server-side. The anon key below
+// is a public client key by design — the relay requires the owner's JWT and
+// the tables have no public policies.
+const SB_URL="https://mwtrmmkhfyqmetpdhafz.supabase.co";
+const SB_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13dHJtbWtoZnlxbWV0cGRoYWZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3OTE5MDMsImV4cCI6MjEwODM2NzkwM30.GF6OlBxgB7I3lP917pYAMdRDQ21P-XiT7XLqYJETCLE";
+const RELAY=SB_URL+"/functions/v1/sync";
+const CRITERIA=["Deliverable produced","QA check passed","Evidence recorded before Completed"];
+let sb=null, sbSession=null, sbPulling=false;
+function sbInit(){
+ if(!window.supabase)return;
+ sb=window.supabase.createClient(SB_URL,SB_ANON);
+ sb.auth.getSession().then(({data})=>{sbSession=data.session;paintSyncCard();if(sbSession)sbPull();});
+ sb.auth.onAuthStateChange((_e,session)=>{const was=!!sbSession;sbSession=session;paintSyncCard();if(session&&!was){notify("good","Backend connected — tasks now sync to Supabase.");sbPull();}});
+}
+async function relayCall(path,method,body){
+ if(!sbSession)return null;
  try{
-  const r=await fetch(SYNC.url+path,{method,headers:{"Content-Type":"application/json","Authorization":"Bearer "+(SYNC.jwt||SYNC.anonKey),"apikey":SYNC.anonKey},body:body?JSON.stringify(body):undefined});
+  const r=await fetch(RELAY+path,{method,headers:{"Content-Type":"application/json","Authorization":"Bearer "+sbSession.access_token,"apikey":SB_ANON},body:body?JSON.stringify(body):undefined});
   if(!r.ok)return null;
   return await r.json();
  }catch(e){return null}
 }
-function syncCreate(t){syncCall("/tasks","POST",{title:t.title,details:t.desc,assignee:t.assignee,project:t.project,priority:t.priority,source:"dashboard"})}
-function syncUpdate(t){syncCall("/tasks/"+t.id,"PATCH",{stage:t.stage,assignee:t.assignee,evidence:t.evidence,deliverable_url:t.deliverables[0]?t.deliverables[0].url:""})}
+function toEvidence(t){
+ const arr=(t.deliverables||[]).map(d=>({label:d.label||"Deliverable",url:d.url}));
+ if(t.evidence&&String(t.evidence).trim())arr.push({label:"Evidence",text:String(t.evidence).trim()});
+ return arr;
+}
+function mapRow(r){
+ const ev=Array.isArray(r.evidence)?r.evidence:[];
+ const dels=ev.filter(d=>d&&d.url).map(d=>({label:d.label||"Deliverable",url:d.url}));
+ if(r.deliverable_url&&!dels.some(d=>d.url===r.deliverable_url))dels.unshift({label:"Deliverable",url:r.deliverable_url});
+ const evText=ev.filter(d=>d&&d.text).map(d=>d.text).join("; ");
+ return {id:r.id,title:r.title,desc:r.description||"",assignee:r.assignee||"dev",project:r.project||"AI Team Command Center",priority:String(r.priority||"MED").toLowerCase(),stage:r.stage,criteria:CRITERIA.slice(),created:r.created_at,updated:r.updated_at,deliverables:dels,evidence:evText,history:[{t:r.updated_at,who:"System",text:"Synced from Supabase · source: "+(r.source||"dashboard")+(r.github_issue_number?" · GitHub issue #"+r.github_issue_number:"")}]};
+}
+async function sbPull(){
+ if(!sbSession||sbPulling)return;sbPulling=true;
+ const out=await relayCall("/tasks","GET");
+ if(out&&Array.isArray(out.tasks)){
+  const server=out.tasks.map(mapRow),sids=new Set(server.map(t=>t.id));
+  const localOnly=S.tasks.filter(t=>!sids.has(t.id));
+  for(const t of localOnly){
+   const made=await relayCall("/tasks","POST",{title:t.title,description:t.desc,assignee:t.assignee,project:t.project,priority:String(t.priority||"med").toUpperCase()});
+   if(made&&made.task){
+    const row=made.task,ev=toEvidence(t);
+    if(t.stage!=="Inbox"||ev.length)await relayCall("/tasks/"+row.id,"PATCH",{stage:t.stage,evidence:ev,deliverable_url:t.deliverables[0]?t.deliverables[0].url:null});
+    server.push(mapRow({id:row.id,title:row.title,description:row.description,assignee:row.assignee,project:row.project,priority:row.priority,stage:t.stage,created_at:row.created_at,updated_at:row.updated_at,evidence:ev,deliverable_url:t.deliverables[0]?t.deliverables[0].url:row.deliverable_url,source:"dashboard",github_issue_number:row.github_issue_number}));
+    const n=parseInt(String(row.id).slice(5),10);if(n>=S.seq)S.seq=n+1;
+   }
+  }
+  const hist={};S.tasks.forEach(t=>{hist[t.id]=t.history});
+  server.forEach(t=>{if(hist[t.id]&&hist[t.id].length)t.history=hist[t.id]});
+  S.tasks=server;save();render();
+  logAct("","Backend sync — "+server.length+" tasks loaded from Supabase.");
+ }
+ sbPulling=false;
+}
+function syncCreate(t){
+ if(!sbSession)return;
+ relayCall("/tasks","POST",{title:t.title,description:t.desc,assignee:t.assignee,project:t.project,priority:String(t.priority||"med").toUpperCase()}).then(out=>{
+  if(out&&out.task){
+   t.id=out.task.id;
+   const n=parseInt(String(t.id).slice(5),10);if(n>=S.seq)S.seq=n+1;
+   t.history.push({t:now(),who:"System",text:"Stored in Supabase as "+t.id+(out.github&&out.github.issue?" · GitHub issue #"+out.github.issue:out.github==="not_configured"?" · GitHub sync pending token":"")});
+   save();render();
+  }
+ });
+}
+function syncUpdate(t){
+ if(!sbSession)return;
+ relayCall("/tasks/"+t.id,"PATCH",{stage:t.stage,assignee:t.assignee,evidence:toEvidence(t),deliverable_url:t.deliverables[0]?t.deliverables[0].url:null});
+}
+function paintSyncCard(){
+ let el=document.getElementById("syncCard");
+ if(!el){
+  const host=document.getElementById("pg-team"),list=document.getElementById("teamList");
+  if(!host||!list)return;
+  const wrap=document.createElement("div");
+  wrap.innerHTML=`<h2 class="sec">Backend</h2><div class="card sync-card" id="syncCard"></div>`;
+  host.insertBefore(wrap,list);
+  el=document.getElementById("syncCard");
+ }
+ if(!window.supabase){el.innerHTML=`<div class="tc-name">Backend sync</div><div class="tc-role">Sync library unavailable offline — local mode.</div>`;return}
+ if(sbSession){
+  el.innerHTML=`<div class="tc-name">Backend sync — connected</div><div class="tc-role">Signed in as ${esc(sbSession.user.email)}. Tasks are stored in Supabase (project "AI Team") and every change is logged. GitHub mirroring activates when the relay token is added.</div><div class="row" style="margin-top:10px"><button class="btn-mini primary" onclick="sbPull()">Sync now</button><button class="btn-mini" onclick="sbSignOut()">Sign out</button></div>`;
+ }else{
+  el.innerHTML=`<div class="tc-name">Backend sync — local mode</div><div class="tc-role">Tasks currently live only on this device. Sign in with the owner account to store them in Supabase. No password — a one-tap email link. Sign-ups are disabled; only the owner account works.</div><div class="row" style="margin-top:10px"><input id="sbEmail" type="email" value="M23wright@gmail.com" style="flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:9px 11px;font-size:13px"><button class="btn-mini primary" onclick="sbSignIn()">Email me a sign-in link</button></div><div class="tc-role" id="sbMsg" style="margin-top:8px"></div>`;
+ }
+}
+async function sbSignIn(){
+ const em=(document.getElementById("sbEmail")||{}).value||"M23wright@gmail.com";
+ const msg=document.getElementById("sbMsg");
+ const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:false,emailRedirectTo:location.href.split("#")[0]}});
+ if(msg)msg.textContent=error?("Could not send: "+error.message):"Sign-in link sent — open your email and tap it. This page connects automatically when you return.";
+}
+async function sbSignOut(){await sb.auth.signOut();sbSession=null;paintSyncCard();notify("","Signed out — back to local mode on this device.");}
 const STAGES=["Inbox","Specified","Assigned","In Progress","Review","Completed","Blocked"];
 const TEAM=[
  {id:"pm",init:"PM",name:"Project Manager",role:"Planning · Breakdown · Tracking",status:"operator",statusLabel:"ChatGPT + Muse",desc:"ChatGPT specifies and breaks down projects; Muse turns specs into tracked tasks, routes them, verifies results, and reports back. Intake from ChatGPT is a handoff — no direct API exists yet."},
@@ -398,7 +483,7 @@ document.getElementById("impFile").addEventListener("change",e=>{
  r.onload=()=>{try{const d=JSON.parse(r.result);if(d&&Array.isArray(d.tasks)){S=d;save();render();alert("Backup imported.")}else alert("That file is not a Command Center backup.")}catch(err){alert("Could not read that file.")}};
  r.readAsText(f);
 });
-load();render();
+load();sbInit();render();paintSyncCard();
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
 </script>
 </body>
