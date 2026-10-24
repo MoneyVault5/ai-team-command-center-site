@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Authorize — AI Team Command Center</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #000308; color: #dbeafe; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 20px; }
+  .card { width: 100%; max-width: 430px; background: linear-gradient(160deg, #0a1628, #050b16);
+    border: 1px solid #123a63; border-radius: 20px; padding: 28px 26px;
+    box-shadow: 0 0 44px rgba(0, 140, 255, .14); }
+  .badge { display: inline-block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: #008CFF; border: 1px solid #008CFF; border-radius: 999px; padding: 4px 10px; margin-bottom: 14px; }
+  h1 { font-size: 21px; margin: 0 0 6px; color: #fff; }
+  p { margin: 8px 0; line-height: 1.55; color: #9fb8d8; font-size: 15px; }
+  b { color: #e6f2ff; }
+  .scope { display: inline-block; background: #0d2138; border: 1px solid #1d4d7a; color: #7cc2ff;
+    border-radius: 8px; padding: 2px 9px; font-size: 13px; margin-top: 2px; }
+  label { display: block; font-size: 13px; color: #9fb8d8; margin: 14px 0 6px; }
+  input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid #1d4d7a;
+    background: #050b16; color: #fff; font-size: 15px; outline: none; }
+  input:focus { border-color: #008CFF; box-shadow: 0 0 0 3px rgba(0,140,255,.25); }
+  button { width: 100%; padding: 13px; border-radius: 12px; border: 0; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 14px; }
+  .primary { background: linear-gradient(90deg, #008CFF, #38b6ff); color: #fff; }
+  .ghost { background: transparent; color: #9fb8d8; border: 1px solid #1d4d7a; }
+  button:disabled { opacity: .55; cursor: default; }
+  .msg { margin-top: 14px; font-size: 14px; color: #7cc2ff; }
+  .err { color: #ff8f8f; }
+  .hidden { display: none; }
+  .who { font-size: 13px; color: #5f7fa3; margin-top: 16px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">AI Team Command Center</span>
+
+    <!-- Sign-in view -->
+    <div id="signin">
+      <h1>Sign in to authorize</h1>
+      <p>An app is asking to connect to your AI Team Command Center. Sign in with your owner account first — you'll get a magic link by email.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" value="M23wright@gmail.com" autocomplete="email">
+      <button id="sendLink" class="primary">Email me a sign-in link</button>
+      <div id="signinMsg" class="msg"></div>
+    </div>
+
+    <!-- Approve view -->
+    <div id="approve" class="hidden">
+      <h1>Authorize connection?</h1>
+      <p><b id="clientName">An app</b> wants to connect to your AI Team Command Center with this access:</p>
+      <span class="scope" id="scopeLabel">tasks</span>
+      <p>It will be able to submit tasks and read task status through the relay. It cannot see your Supabase or GitHub credentials.</p>
+      <button id="approveBtn" class="primary">Approve</button>
+      <button id="denyBtn" class="ghost">Deny</button>
+      <div id="approveMsg" class="msg"></div>
+      <div class="who" id="whoami"></div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SB_URL = "https://mwtrmmkhfyqmetpdhafz.supabase.co";
+  const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13dHJtbWtoZnlxbWV0cGRoYWZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3OTE5MDMsImV4cCI6MjEwODM2NzkwM30.GF6OlBxgB7I3lP917pYAMdRDQ21P-XiT7XLqYJETCLE";
+  const MCP_BASE = SB_URL + "/functions/v1/mcp";
+
+  const q = new URLSearchParams(location.search);
+  const oauth = {
+    client_id: q.get("client_id") || "",
+    client_name: q.get("client_name") || "An app",
+    redirect_uri: q.get("redirect_uri") || "",
+    state: q.get("state") || "",
+    code_challenge: q.get("code_challenge") || "",
+    scope: q.get("scope") || "tasks",
+  };
+
+  const sb = supabase.createClient(SB_URL, SB_ANON);
+  const $ = (id) => document.getElementById(id);
+
+  function backToClient(params) {
+    const u = new URL(oauth.redirect_uri);
+    for (const [k, v] of Object.entries(params)) if (v) u.searchParams.set(k, v);
+    location.assign(u.toString());
+  }
+
+  $("sendLink").addEventListener("click", async () => {
+    const email = $("email").value.trim();
+    const msg = $("signinMsg");
+    msg.textContent = "";
+    if (!oauth.client_id || !oauth.redirect_uri || !oauth.code_challenge) {
+      msg.innerHTML = '<span class="err">This page is missing its authorization parameters. Start the connection from the app again.</span>';
+      return;
+    }
+    $("sendLink").disabled = true;
+    // Preserve the OAuth params across the magic-link round trip.
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false, emailRedirectTo: location.href },
+    });
+    if (error) {
+      msg.innerHTML = '<span class="err">' + error.message + "</span>";
+      $("sendLink").disabled = false;
+    } else {
+      msg.textContent = "Sign-in link sent. Open it on this device — you'll land right back on this approval screen.";
+    }
+  });
+
+  $("denyBtn").addEventListener("click", () => {
+    backToClient({ error: "access_denied", state: oauth.state });
+  });
+
+  $("approveBtn").addEventListener("click", async () => {
+    const msg = $("approveMsg");
+    msg.textContent = "";
+    $("approveBtn").disabled = true;
+    try {
+      const { data } = await sb.auth.getSession();
+      const token = data.session && data.session.access_token;
+      if (!token) throw new Error("Session expired — sign in again.");
+      const r = await fetch(MCP_BASE + "/oauth/code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({
+          client_id: oauth.client_id,
+          redirect_uri: oauth.redirect_uri,
+          code_challenge: oauth.code_challenge,
+          scope: oauth.scope,
+        }),
+      });
+      const out = await r.json();
+      if (!r.ok || !out.code) throw new Error(out.error_description || out.error || "Could not mint an authorization code.");
+      backToClient({ code: out.code, state: oauth.state });
+    } catch (e) {
+      msg.innerHTML = '<span class="err">' + e.message + "</span>";
+      $("approveBtn").disabled = false;
+    }
+  });
+
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data.session) {
+      $("signin").classList.add("hidden");
+      $("approve").classList.remove("hidden");
+      $("clientName").textContent = oauth.client_name;
+      $("scopeLabel").textContent = oauth.scope;
+      $("whoami").textContent = "Signed in as " + (data.session.user.email || "owner");
+    }
+  })();
+</script>
+</body>
+</html>
